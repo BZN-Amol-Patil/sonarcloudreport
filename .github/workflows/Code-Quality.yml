@@ -1,0 +1,59 @@
+name: SonarQube Scan for .NET Project
+
+on:
+  push:
+    branches: Code_Quality
+  pull_request:
+
+jobs:
+  sonarqube:
+    runs-on: ubuntu-latest
+
+    services:
+      sonarqube:
+        image: sonarqube:community
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/api/system/health || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '5.x'  # or your project's version
+
+      - name: Wait for SonarQube to be healthy
+        run: |
+          echo "Waiting for SonarQube to be healthy..."
+          for i in {1..60}; do
+            status=$(curl -s http://localhost:9000/api/system/health | jq -r '.status')
+            if [ "$status" == "GREEN" ]; then
+              echo "SonarQube is healthy."
+              break
+            fi
+            echo "Waiting... ($i)"
+            sleep 5
+          done
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Add .NET tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Begin SonarQube scan
+        run: |
+          dotnet sonarscanner begin /k:"dotnet_project_key" /d:sonar.host.url="http://localhost:9000" /d:sonar.login="admin" /d:sonar.password="admin"
+
+      - name: Build the project
+        run: dotnet build --no-incremental
+
+      - name: End SonarQube scan
+        run: dotnet sonarscanner end /d:sonar.login="admin" /d:sonar.password="admin"
