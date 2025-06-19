@@ -27,7 +27,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '5.x'  # or your project's version
+          dotnet-version: '5.x'  # or your project's version here
 
       - name: Wait for SonarQube to be healthy
         run: |
